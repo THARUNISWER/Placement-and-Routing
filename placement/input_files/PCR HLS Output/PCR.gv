@@ -1,0 +1,21 @@
+// Polymerase chain reaction 
+digraph PCR {
+
+	
+	1 [label="M1_Mix <0,10>"]
+	2 [label="M2_Mix <5,10>"]
+	3 [label="M3_Mix <10,16>"]
+	4 [label="M4_Mix <0,5>"]
+	5 [label="M5_Mix <0,5>"]
+	6 [label="M6_Mix <5,15>"]
+	7 [label="M7_Mix <16,19>"]
+
+
+	1 -> 3
+	2 -> 3
+	4 -> 6
+	5 -> 6
+	3 -> 7
+	6 -> 7
+	
+}
