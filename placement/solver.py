@@ -300,6 +300,7 @@ class RectanglePackingProblemAnnealerHard(RectanglePackingProblemAnnealer):
         seqpair = SequencePair(pair=(gp, gn))
         floorplan = seqpair.decode(problem=self.problem, rotations=rotations)
 
+
         # Returns float max, if width/height limit is not satisfied
         if floorplan.bounding_box[0] > self.width_limit:
             return sys.float_info.max

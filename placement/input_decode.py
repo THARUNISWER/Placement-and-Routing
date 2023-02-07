@@ -25,7 +25,14 @@ def convert(src):
 def pass_problem(problem, cur_time):
     # Find a solution
     print("\n=== Solving without width/height constraints ===")
+    print(prev_modules)
     solution = Solver().solve(problem=problem)
+    for obj in solution.floorplan.positions:
+        i = next((i for i, item in enumerate(new_modules) if item["id"] == obj["id"]), None)
+        if i is not None:
+            new_modules[i]["x"] = obj["x"]
+            new_modules[i]["y"] = obj["y"]
+
     print("solution:", solution)
 
     # Visualization (to floorplan.png)
@@ -73,14 +80,9 @@ for x in sorted_lst:
         temp_dict["end_time"] = x["end_time"]
         new_modules.append(temp_dict)
     else:
-        expired_modules = []
-        for l in prev_modules:
-            if l["end_time"] <= cur_time:
-                expired_modules.append(l)
-        prev_modules = [i for i in prev_modules if i not in expired_modules]
         if len(prev_modules) > 0:
             new_modules += prev_modules
-        print(new_modules)
+        #print(new_modules)
         rectangles = list(dict((k, x[k]) for k in ('id', 'width', 'height')) for x in new_modules)
         problem = Problem(rectangles=rectangles)
         pass_problem(problem, cur_time)
@@ -92,6 +94,11 @@ for x in sorted_lst:
         temp_dict["start_time"] = x["start_time"]
         temp_dict["end_time"] = x["end_time"]
         new_modules.append(temp_dict)
+        expired_modules = []
+        for l in prev_modules:
+            if l["end_time"] <= cur_time:
+                expired_modules.append(l)
+        prev_modules = [i for i in prev_modules if i not in expired_modules]
 
 # last timestamp
 for l in prev_modules:
