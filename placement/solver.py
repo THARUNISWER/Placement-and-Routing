@@ -24,6 +24,8 @@ from problem import Problem
 from sequence_pair import SequencePair
 from solution import Solution
 
+import Displacement
+
 
 def exit_handler(signum, frame) -> None:  # type: ignore
     """
@@ -45,6 +47,7 @@ class Solver:
         problem: Problem,
         width_limit: Optional[float] = None,
         height_limit: Optional[float] = None,
+        prev_modules: List = [],
         simanneal_minutes: float = 0.1,
         simanneal_steps: int = 100,
         show_progress: bool = False,
@@ -62,6 +65,7 @@ class Solver:
                 problem,
                 width_limit,
                 height_limit,
+                prev_modules,
                 None,
                 simanneal_minutes,
                 simanneal_steps,
@@ -121,6 +125,7 @@ class Solver:
         problem: Problem,
         width_limit: Optional[float] = None,
         height_limit: Optional[float] = None,
+        prev_modules: Optional[List] = None,
         initial_state: Optional[List[int]] = None,
         simanneal_minutes: float = 0.1,
         simanneal_steps: int = 100,
@@ -154,7 +159,7 @@ class Solver:
                 problem=problem,
                 width_limit=width_limit,
                 height_limit=height_limit,
-                show_progress=show_progress,
+                show_progress=show_progress
             )
         elif strategy == "soft":
             rpp = RectanglePackingProblemAnnealerSoft(
@@ -163,6 +168,15 @@ class Solver:
                 width_limit=width_limit,
                 height_limit=height_limit,
                 show_progress=show_progress,
+            )
+        elif strategy == "preserve":
+            rpp = RectanglePackingProblemAnnealerPreserve(
+                state=init_state,
+                problem=problem,
+                width_limit=width_limit,
+                height_limit=height_limit,
+                show_progress=show_progress,
+                prev_modules=prev_modules
             )
         else:
             raise ValueError("'strategy' must be either of ['hard', 'soft'].")
@@ -191,10 +205,12 @@ class RectanglePackingProblemAnnealer(Annealer):
         problem: Problem,
         width_limit: Optional[float] = None,
         height_limit: Optional[float] = None,
+        prev_modules: Optional[List] = None,
         show_progress: bool = False,
     ) -> None:
         self.seqpair = SequencePair()
         self.problem = problem
+        self.prev_modules = prev_modules
 
         # The max possible width and height to deal with the size limit.
         self.max_possible_width = sum(
@@ -300,7 +316,6 @@ class RectanglePackingProblemAnnealerHard(RectanglePackingProblemAnnealer):
         seqpair = SequencePair(pair=(gp, gn))
         floorplan = seqpair.decode(problem=self.problem, rotations=rotations)
 
-
         # Returns float max, if width/height limit is not satisfied
         if floorplan.bounding_box[0] > self.width_limit:
             return sys.float_info.max
@@ -308,6 +323,58 @@ class RectanglePackingProblemAnnealerHard(RectanglePackingProblemAnnealer):
             return sys.float_info.max
 
         return float(floorplan.area)
+
+class RectanglePackingProblemAnnealerPreserve(RectanglePackingProblemAnnealer):
+    def move(self) -> float:
+        """
+        Move state (sequence-pair) and return the energy diff.
+        """
+        initial_energy: float = self.energy()
+        initial_state: List[int] = self.state[:]
+
+        # Maximum the number of trial: 10000
+        for _ in range(100000):
+            # Choose two indices and swap them
+            i, j = random.sample(range(self.problem.n), k=2)  # The first and second index
+            offset = random.randint(0, 1) * self.problem.n  # Choose G_{+} (=0) or G_{-} (=1)
+
+            # Swap them (i != j always holds true)
+            self.state[i + offset], self.state[j + offset] = initial_state[j + offset], initial_state[i + offset]
+
+            # Random rotation
+            if self.problem.rectangles[i]["rotatable"]:
+                if random.randint(0, 1) == 1:
+                    self.state[i + 2 * self.problem.n] = initial_state[i + 2 * self.problem.n] + 1
+
+            # We adopt solution if the solution width/height limit is satisfied
+            energy = self.energy()
+            if energy < sys.float_info.max:
+                break
+
+            # Restore the state
+            self.state = initial_state[:]
+
+        else:
+            raise HardToFindSolutionException
+
+        return energy - initial_energy
+
+    def energy(self) -> float:
+        """
+        Calculates the area of bounding box.
+        """
+
+        # Pick up sequence-pair and rotations from state
+        gp, gn, rotations = self.retrieve_pairs(n=self.problem.n, state=self.state)
+        seqpair = SequencePair(pair=(gp, gn))
+        floorplan = seqpair.decode(problem=self.problem, rotations=rotations)
+
+        val = Displacement.displacement(prev_modules=self.prev_modules, floorplan=floorplan)
+        if not val:
+            return sys.float_info.max
+
+        return float(floorplan.area)
+
 
 
 class RectanglePackingProblemAnnealerSoft(RectanglePackingProblemAnnealer):
@@ -360,7 +427,6 @@ class RectanglePackingProblemAnnealerSoft(RectanglePackingProblemAnnealer):
         if floorplan.bounding_box[1] > self.height_limit:
             return self.max_possible_width * self.max_possible_height + floorplan.area
 
-        print(floorplan.area)
         return float(floorplan.area)
 
 

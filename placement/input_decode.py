@@ -3,6 +3,7 @@ from visualizer import Visualizer
 from problem import Problem
 import graphviz
 import re
+import Displacement
 
 
 # function to extract modules from graph file(.gv)
@@ -26,7 +27,13 @@ def pass_problem(problem, cur_time):
     # Find a solution
     print("\n=== Solving without width/height constraints ===")
     print(prev_modules)
-    solution = Solver().solve(problem=problem)
+    solution = Solver().solve(problem=problem, prev_modules=prev_modules)
+    # i = 0
+    # while not Displacement.displacement(prev_modules,solution.floorplan) or i == 1000:
+    #     solution = Solver().solve(problem=problem, prev_modules=prev_modules)
+    #     i += 1
+    # print(i)
+
     for obj in solution.floorplan.positions:
         i = next((i for i, item in enumerate(new_modules) if item["id"] == obj["id"]), None)
         if i is not None:
