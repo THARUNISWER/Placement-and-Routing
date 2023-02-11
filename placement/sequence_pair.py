@@ -133,7 +133,7 @@ class SequencePair:
                 }
             )
 
-        return Floorplan(bounding_box=(bb_width, bb_height), positions=positions)
+        return Floorplan(bounding_box=[bb_width, bb_height], positions=positions)
 
     def encode(self) -> None:
         """
