@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Union
 
 
 class Floorplan:
@@ -20,7 +20,7 @@ class Floorplan:
     A class to represent a rectangle packing floorplan.
     """
 
-    def __init__(self, positions: List[Dict], bounding_box: Tuple, area: Union[int, float] = -1.0) -> None:
+    def __init__(self, positions: List[Dict], bounding_box: List, area: Union[int, float] = -1.0) -> None:
         self.positions = positions
         self.bounding_box = bounding_box
         if 0 < area:
