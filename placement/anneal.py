@@ -267,12 +267,16 @@ class Annealer(object):
         T = 0.0
         E = self.energy()
         self.update(step, T, E, None, None)
-        while T == 0.0:
+        cnt=0
+        while T == 0.0 and cnt<=10:
             step += 1
             dE = self.move()
             if dE is None:
                 dE = self.energy() - E
             T = abs(dE)
+            cnt+=1
+        if cnt>10:
+            return {'tmax': 0, 'tmin': 0, 'steps': 0, 'updates': self.updates}
 
         # Search for Tmax - a temperature that gives 98% acceptance
         E, acceptance, improvement = run(T, steps)
