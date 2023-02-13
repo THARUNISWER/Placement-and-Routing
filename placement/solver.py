@@ -47,7 +47,6 @@ class Solver:
         problem: Problem,
         width_limit: Optional[float] = None,
         height_limit: Optional[float] = None,
-        prev_modules: List = [],
         simanneal_minutes: float = 0.1,
         simanneal_steps: int = 100,
         show_progress: bool = False,
@@ -65,7 +64,6 @@ class Solver:
                 problem,
                 width_limit,
                 height_limit,
-                prev_modules,
                 None,
                 simanneal_minutes,
                 simanneal_steps,
@@ -125,7 +123,6 @@ class Solver:
         problem: Problem,
         width_limit: Optional[float] = None,
         height_limit: Optional[float] = None,
-        prev_modules: Optional[List] = None,
         initial_state: Optional[List[int]] = None,
         simanneal_minutes: float = 0.1,
         simanneal_steps: int = 100,
@@ -176,15 +173,19 @@ class Solver:
                 width_limit=width_limit,
                 height_limit=height_limit,
                 show_progress=show_progress,
-                prev_modules=prev_modules
             )
         else:
             raise ValueError("'strategy' must be either of ['hard', 'soft'].")
 
         signal.signal(signal.SIGINT, exit_handler)
         rpp.copy_strategy = "slice"  # We use "slice" since the state is a list
-        rpp.set_schedule(rpp.auto(minutes=simanneal_minutes, steps=simanneal_steps))
-        final_state, _ = rpp.anneal()
+        set_schedule_input = rpp.auto(minutes=simanneal_minutes, steps=simanneal_steps)
+        if set_schedule_input['tmin'] == set_schedule_input['tmax']:
+            final_state = rpp.state
+        else:
+            rpp.set_schedule(set_schedule_input)
+            final_state, _ = rpp.anneal()
+
 
         # Convert simanneal's final_state to a Solution object
         gp, gn, rotations = rpp.retrieve_pairs(n=problem.n, state=final_state)
@@ -205,12 +206,10 @@ class RectanglePackingProblemAnnealer(Annealer):
         problem: Problem,
         width_limit: Optional[float] = None,
         height_limit: Optional[float] = None,
-        prev_modules: Optional[List] = None,
         show_progress: bool = False,
     ) -> None:
         self.seqpair = SequencePair()
         self.problem = problem
-        self.prev_modules = prev_modules
 
         # The max possible width and height to deal with the size limit.
         self.max_possible_width = sum(
@@ -369,9 +368,9 @@ class RectanglePackingProblemAnnealerPreserve(RectanglePackingProblemAnnealer):
         seqpair = SequencePair(pair=(gp, gn))
         floorplan = seqpair.decode(problem=self.problem, rotations=rotations)
 
-        val = Displacement.displacement(prev_modules=self.prev_modules, floorplan=floorplan)
+        '''val = Displacement.displacement(prev_modules=self.prev_modules, floorplan=floorplan)
         if not val:
-            return sys.float_info.max
+            return sys.float_info.max'''
 
         return float(floorplan.area)
 
