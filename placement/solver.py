@@ -277,6 +277,12 @@ class RectanglePackingProblemAnnealerHard(RectanglePackingProblemAnnealer):
         """
         initial_energy: float = self.energy()
         initial_state: List[int] = self.state[:]
+        if self.problem.n == 1:
+            energy = self.energy()
+            if energy < sys.float_info.max:
+                return 0
+            else:
+                raise HardToFindSolutionException
 
         # Maximum the number of trial: 10000
         for _ in range(10000):
@@ -330,7 +336,8 @@ class RectanglePackingProblemAnnealerPreserve(RectanglePackingProblemAnnealer):
         """
         initial_energy: float = self.energy()
         initial_state: List[int] = self.state[:]
-
+        if self.problem.n == 1:
+            return 0
         # Maximum the number of trial: 10000
         for _ in range(100000):
             # Choose two indices and swap them
@@ -389,7 +396,8 @@ class RectanglePackingProblemAnnealerSoft(RectanglePackingProblemAnnealer):
         """
         initial_energy: float = self.energy()
         initial_state: List[int] = self.state[:]
-
+        if self.problem.n == 1:
+            return 0
         # Choose two indices and swap them
         i, j = random.sample(range(self.problem.n), k=2)  # The first and second index
         offset = random.randint(0, 1) * self.problem.n  # Choose G_{+} (=0) or G_{-} (=1)

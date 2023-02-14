@@ -6,6 +6,7 @@ import re
 from floorplan import Floorplan
 from solution import Solution
 from sequence_pair import SequencePair
+import copy
 
 
 # function to extract modules from graph file(.gv)
@@ -25,116 +26,43 @@ def convert(src):
 
 
 # function to pass the problem for simulated annealing to get the floorplan
-def pass_problem(problem_new, prev_modules, cur_time):
+def pass_problem(problem_new, common_modules, cur_time):
     # Find a solution
 
     print("\n=== Solving without width/height constraints ===")
     print("current time: ", cur_time)
-    print("prev_modules: ", prev_modules)
+    print("common_modules: ", common_modules)
     print("new_modules: ", problem_new.rectangles)
 
-    #finding best placement for new modules using simulated annealing method -> sub problem 1
-    if len(problem_new.rectangles) == 1:
-        sequence_pair_new = SequencePair(pair=(list(range(1)), list(range(1))))
-        temp_dict = {}
-        positions_new=[]
-        temp_dict['id'] = problem_new.rectangles[0]['id']
-        temp_dict['x'] = 0
-        temp_dict['y'] = 0
-        temp_dict['width'] = problem_new.rectangles[0]['width']
-        temp_dict['height'] = problem_new.rectangles[0]['height']
-        positions_new.append(temp_dict)
-        bounding_box_new=[]
-        bounding_box_new.append(problem_new.rectangles[0]['width'])
-        bounding_box_new.append(problem_new.rectangles[0]['height'])
-        area_new = bounding_box_new[0] * bounding_box_new[1]
-        floorplan_new = Floorplan(positions = positions_new, bounding_box = bounding_box_new, area = area_new)
-        solution_new = Solution(sequence_pair=sequence_pair_new, floorplan=floorplan_new)
-    else:
-        solution_new = Solver().solve(problem=problem_new)
+    # sub_problem-1: simulated annealing for new modules
+    solution_new = Solver().solve(problem=problem_new)
+    print(solution_new)
 
-    #   finding relative displacements between all prev_modules wrt to the module that is
-    # present in the lower left corner
-    # calculating positions data structure of common modules ("positions_common") using relative displacements -> sub problem 2
-    prev_modules = sorted(prev_modules, key=lambda i: (i['x'], i['y']))
-    positions_common = []
+    # moving the whole system of common modules(common_modules) to origin
     bounding_box_common = []
-    flag=0
-    for l in prev_modules:
-        temp_dict={}
-        temp_dict["id"]= l["id"]
-        if flag==0:
-            temp_dict["x"]= 0
-            temp_dict["y"]= 0
-            first_x= l["x"]
-            first_y= l["y"]
-            flag=1
-        else:
-            temp_dict["x"]= l["x"] - first_x
-            temp_dict["y"]= l["y"] - first_y
-        temp_dict["width"]= l["width"]
-        temp_dict["height"]= l["height"]
-        positions_common.append(temp_dict)
+    if len(common_modules) > 0:
+        bottom_x = min(common_modules, key=lambda p: (p['x']))
+        bottom_y = min(common_modules, key=lambda p: (p['y']))
+        first_x = bottom_x['x']
+        first_y = bottom_y['y']
+        for obj in common_modules:
+            obj['y'] -= first_y
+            obj['x'] -= first_x
+    # merging both placements
+    if len(common_modules) > 0:
+        # width of the grid containing common modules
+        rightmost = max(common_modules, key=lambda i: (i['x']+i['width']))
+        bounding_box_common.append(rightmost['x'] + rightmost['width'])
 
-    #default final values if there are no prev_modules i.e common modules
-    #the position_final and bounding_box_final will solely depend on new modules
-    positions_final = solution_new.floorplan.positions
-    bounding_box_final = []
-    bounding_box_final.append(solution_new.floorplan.bounding_box[0])
-    bounding_box_final.append(solution_new.floorplan.bounding_box[1])
-    area_final = bounding_box_final[0] * bounding_box_final[1]
-    if len(prev_modules)>0:
-        # to find width of the grid containing common modules,
-        # we have to find the module with maximum ('x' + 'width') value i.e right most module
-        # so sort prev_module acc to i['x']+i['width'] parameter
-        prev_modules = sorted(prev_modules, key=lambda i: (i['x']+i['width']))
-        bounding_box_common.append(prev_modules[len(prev_modules) - 1]['x'] + prev_modules[len(prev_modules) - 1]['width'])
-
-        # to find height of the grid containing common modules,
-        # we have to find the module with maximum ('y' + 'height') value i.e top most module
-        # so sort prev_module acc to i['y']+i['height'] parameter
-        prev_modules = sorted(prev_modules, key=lambda i: (i['y'] + i['height']))
-        bounding_box_common.append(prev_modules[len(prev_modules)-1]['y'] + prev_modules[len(prev_modules) - 1]['height'])
-
-        # now, we are having 2 grids one that contains all new modules and the other containing common modules and we have to combine them
-        # there are 4 possible ways in which we can place 2 grids, they are:
-        # 1. dont rotate both grids
-        # 2, 3. rotate one of the grids
-        # 4. rotate both the grids
-        # choose the formation that gives min area
-        min_area = min( (solution_new.floorplan.bounding_box[0]+bounding_box_common[0])*max(solution_new.floorplan.bounding_box[1],bounding_box_common[1]),
-                        (solution_new.floorplan.bounding_box[0]+bounding_box_common[1])*max(solution_new.floorplan.bounding_box[1],bounding_box_common[0]),
-                        (solution_new.floorplan.bounding_box[1]+bounding_box_common[0])*max(solution_new.floorplan.bounding_box[0],bounding_box_common[1]),
-                        (solution_new.floorplan.bounding_box[1]+bounding_box_common[1])*max(solution_new.floorplan.bounding_box[0],bounding_box_common[0]))
-
-        #updating the positions of modules and the bounding_box of the grid according to the formation that gave the min area
-        if min_area == (solution_new.floorplan.bounding_box[0]+bounding_box_common[1])*max(solution_new.floorplan.bounding_box[1],bounding_box_common[0]):
-            for obj in positions_common:
-                obj['x'], obj['y'] = obj['y'], obj['x']
-            bounding_box_common[0], bounding_box_common[1] = bounding_box_common[1], bounding_box_common[0]
-        elif min_area == (solution_new.floorplan.bounding_box[1]+bounding_box_common[0])*max(solution_new.floorplan.bounding_box[0],bounding_box_common[1]):
-            for obj in solution_new.floorplan.positions:
-                obj['x'], obj['y'] = obj['y'], obj['x']
-            solution_new.floorplan.bounding_box[0], solution_new.floorplan.bounding_box[1] = solution_new.floorplan.bounding_box[1], solution_new.floorplan.bounding_box[0]
-        elif min_area == (solution_new.floorplan.bounding_box[1]+bounding_box_common[1])*max(solution_new.floorplan.bounding_box[0],bounding_box_common[0]):
-            for obj in positions_common:
-                obj['x'], obj['y'] = obj['y'], obj['x']
-            for obj in solution_new.floorplan.positions:
-                obj['x'], obj['y'] = obj['y'], obj['x']
-            bounding_box_common[0], bounding_box_common[1] = bounding_box_common[1], bounding_box_common[0]
-            solution_new.floorplan.bounding_box[0], solution_new.floorplan.bounding_box[1] = solution_new.floorplan.bounding_box[1], solution_new.floorplan.bounding_box[0]
-
-        for obj in positions_common:
-            obj['x']+= solution_new.floorplan.bounding_box[0]
-
-        positions_final= solution_new.floorplan.positions + positions_common
-        bounding_box_final[0] = solution_new.floorplan.bounding_box[0] + bounding_box_common[0]
-        bounding_box_final[1] = max(solution_new.floorplan.bounding_box[1], bounding_box_common[1])
-        area_final = bounding_box_final[0] * bounding_box_final[1]
-
-    floorplan_final = Floorplan(positions = positions_final, bounding_box = bounding_box_final, area = area_final)
-    sequence_pair_final = SequencePair(pair=(list(range(len(positions_final))), list(range(len(positions_final))) ))
-    solution_final = Solution(sequence_pair= sequence_pair_final, floorplan= floorplan_final)
+        # height of the grid containing common modules
+        rightmost = max(common_modules, key=lambda i: (i['y'] + i['height']))
+        bounding_box_common.append(rightmost['y'] + rightmost['height'])
+        common_floorplan = Floorplan(positions = common_modules, bounding_box=bounding_box_common)
+        print(common_floorplan)
+        new_floorplan = solution_new.floorplan
+        solution_final = optimize(common_floorplan, new_floorplan)
+    else:
+        solution_final = solution_new
 
     for obj in solution_final.floorplan.positions:
         i = next((i for i, item in enumerate(new_modules) if item["id"] == obj["id"]), None)
@@ -146,6 +74,58 @@ def pass_problem(problem_new, prev_modules, cur_time):
 
     # Visualization (to floorplan.png)
     Visualizer().visualize(solution=solution_final, path="./figs/test/floorplan" + str(cur_time) + ".png")
+
+
+def optimize(common_floorplan, new_floorplan):
+    shift_right = common_floorplan.bounding_box[0]
+    shift_up = common_floorplan.bounding_box[1]
+    possible_floorplans = []
+    # Case 1:
+    new_floorplan1 = copy.deepcopy(new_floorplan)
+    for obj in new_floorplan1.positions:
+        obj["x"] += shift_right
+    fin_width = new_floorplan1.bounding_box[0] + common_floorplan.bounding_box[0]
+    fin_height = max(new_floorplan1.bounding_box[1], common_floorplan.bounding_box[1])
+    fin_bounding_box = [fin_width, fin_height]
+    possible_floorplans.append(Floorplan(common_floorplan.positions + new_floorplan1.positions, fin_bounding_box))
+
+    # Case 2:
+    new_floorplan2 = copy.deepcopy(new_floorplan)
+    for obj in new_floorplan2.positions:
+        obj["y"] += shift_up
+    fin_width = max(new_floorplan2.bounding_box[0], common_floorplan.bounding_box[0])
+    fin_height = new_floorplan2.bounding_box[1] + common_floorplan.bounding_box[1]
+    fin_bounding_box = [fin_width, fin_height]
+    possible_floorplans.append(Floorplan(common_floorplan.positions + new_floorplan2.positions, fin_bounding_box))
+
+    # Case 3:
+    new_floorplan3 = copy.deepcopy(new_floorplan)
+    new_floorplan3.bounding_box[0], new_floorplan3.bounding_box[1] = new_floorplan3.bounding_box[1], \
+                                                                     new_floorplan3.bounding_box[0]
+    for obj in new_floorplan3.positions:
+        obj["width"], obj["height"] = obj["height"], obj["width"]
+        obj["x"], obj["y"] = obj["y"], obj["x"]
+        obj["x"] += shift_right
+    fin_width = new_floorplan3.bounding_box[0] + common_floorplan.bounding_box[0]
+    fin_height = max(new_floorplan3.bounding_box[1], common_floorplan.bounding_box[1])
+    fin_bounding_box = [fin_width, fin_height]
+    possible_floorplans.append(Floorplan(common_floorplan.positions + new_floorplan3.positions, fin_bounding_box))
+
+    # Case 4:
+    new_floorplan4 = copy.deepcopy(new_floorplan)
+    new_floorplan4.bounding_box[0], new_floorplan4.bounding_box[1] = new_floorplan4.bounding_box[1], \
+                                                                     new_floorplan4.bounding_box[0]
+    for obj in new_floorplan4.positions:
+        obj["width"], obj["height"] = obj["height"], obj["width"]
+        obj["x"], obj["y"] = obj["y"], obj["x"]
+        obj["y"] += shift_up
+    fin_width = max(new_floorplan4.bounding_box[0], common_floorplan.bounding_box[0])
+    fin_height = new_floorplan4.bounding_box[1] + common_floorplan.bounding_box[1]
+    fin_bounding_box = [fin_width, fin_height]
+    possible_floorplans.append(Floorplan(common_floorplan.positions + new_floorplan4.positions, fin_bounding_box))
+
+    fin_floorplan = min(possible_floorplans, key=lambda f: f.area)
+    return Solution(sequence_pair=SequencePair(pair=([], [])), floorplan=fin_floorplan)
 
 
 mapped_component = {"M1": {"width": 2, "height": 2}, "D1": {"width": 2, "height": 2},
@@ -162,16 +142,14 @@ graph = graphviz.Source.from_file('./input_files/In_Vitro HLS Output/In-Vitro[Do
 input_lst = convert(graph)
 
 # example input
-# input_lst = [{"id": 13, "type": "M1", "start_time": 2, "end_time": 7}, {"id": 14, "type": "M1", "start_time": 4, "end_time":9},
-#               {"id": 16, "type": "M2", "start_time": 7, "end_time": 10}, {"id": 17, "type": "M2", "start_time": 8, "end_time":11},
-#               {"id": 18, "type": "M2", "start_time": 2, "end_time": 5}, {"id": 15, "type": "M1", "start_time": 5, "end_time":10}]
+# input_lst = [{"id": 13, "type": "I1", "start_time": 2, "end_time": 7}]
 
 sorted_lst = sorted(input_lst, key=lambda i: i['start_time'])
 last_start_time = sorted_lst[len(input_lst)-1]["start_time"]
 
 cur_time = input_lst[0]["start_time"]
 new_modules = []
-prev_modules = []
+common_modules = []
 
 # handles various timestamps in the problem
 for x in sorted_lst:
@@ -186,13 +164,13 @@ for x in sorted_lst:
         rectangles_new= list(dict((k, x[k]) for k in ('id', 'width', 'height')) for x in new_modules)
         print("rectangles_new: " ,rectangles_new)
         problem_new= Problem(rectangles=rectangles_new)
-        if len(prev_modules) > 0:
-            new_modules += prev_modules
+        if len(common_modules) > 0:
+            new_modules += common_modules
 
         # rectangles = list(dict((k, x[k]) for k in ('id', 'width', 'height')) for x in new_modules)
         # problem = Problem(rectangles=rectangles)
-        pass_problem(problem_new, prev_modules, cur_time)
-        prev_modules = new_modules
+        pass_problem(problem_new, common_modules, cur_time)
+        common_modules = new_modules
         new_modules = []
         cur_time = x["start_time"]
         temp_dict = {"id": x["id"]}
@@ -201,23 +179,23 @@ for x in sorted_lst:
         temp_dict["end_time"] = x["end_time"]
         new_modules.append(temp_dict)
         expired_modules = []
-        for l in prev_modules:
+        for l in common_modules:
             if l["end_time"] <= cur_time:
                 expired_modules.append(l)
-        prev_modules = [i for i in prev_modules if i not in expired_modules]
+        common_modules = [i for i in common_modules if i not in expired_modules]
 
 # last timestamp
 rectangles_new= list(dict((k, x[k]) for k in ('id', 'width', 'height')) for x in new_modules)
 print(rectangles_new)
-problem_new= Problem(rectangles=rectangles_new)
-for l in prev_modules:
+problem_new = Problem(rectangles=rectangles_new)
+for l in common_modules:
     if l["end_time"] <= cur_time:
-        prev_modules.remove(l)
-if len(prev_modules) > 0:
-    new_modules += prev_modules
+        common_modules.remove(l)
+if len(common_modules) > 0:
+    new_modules += common_modules
 rectangles = list(dict((k, x[k]) for k in ('id', 'width', 'height')) for x in new_modules)
 problem = Problem(rectangles=rectangles)
-pass_problem(problem_new, prev_modules, cur_time)
+pass_problem(problem_new, common_modules, cur_time)
 
 
 
