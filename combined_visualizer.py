@@ -1,23 +1,9 @@
-# Copyright 2022 Kotaro Terada
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 from typing import Tuple
-
+import sys
 import matplotlib.patches as patches
 from matplotlib import pylab as plt
 
-from .solution import Solution
+from placement.solution import Solution
 
 
 class Visualizer:
@@ -29,16 +15,14 @@ class Visualizer:
         # Default font size is 12
         plt.rcParams["font.size"] = 14
 
-    def visualize(self, solution: Solution, path: str = "floorplan.png", title: str = "Floorplan") -> None:
-        if not isinstance(solution, Solution):
-            raise TypeError("Invalid argument: 'solution' must be an instance of Solution.")
+    def visualize(self, solution: Solution, routing_pos: list = [], path: str = "floorplan.png", title: str = "Floorplan") -> None:
 
         positions = solution.floorplan.positions
-        bounding_box = solution.floorplan.bounding_box
+        # bounding_box = solution.floorplan.bounding_box
 
         # Figure settings
-        bb_width = bounding_box[0]
-        bb_height = bounding_box[1]
+        bb_width = solution.floorplan.bounding_box[0] + 10
+        bb_height = solution.floorplan.bounding_box[1] + 10
         fig = plt.figure(figsize=(10, 10 * bb_height / bb_width + 0.5))
         ax = plt.axes()
         ax.set_aspect("equal")
@@ -68,6 +52,23 @@ class Visualizer:
             center_y = rectangle["y"] + rectangle["height"] / 2 - bb_height * centering_offset
             ax.text(x=center_x, y=center_y, s=rectangle["id"], fontsize=18, color=fontcolor)
 
+        color, fontcolor = self.get_color(0)
+        for square in routing_pos:
+            r = patches.Rectangle(
+                xy=(square[0], square[1]),
+                width=1,
+                height=1,
+                edgecolor="#000000",
+                facecolor=color,
+                alpha=1.0,
+                fill=True,
+            )
+            ax.add_patch(r)
+
+            # Add text label
+            centering_offset = 0.011
+            center_x = square[0] + 1 / 2 - bb_width * centering_offset
+            center_y = square[1] + 1 / 2 - bb_height * centering_offset
         # Output
         if path is None:
             plt.show()

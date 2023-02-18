@@ -23,11 +23,11 @@ solution = Solver().solve(problem=problem)
 print("solution:", solution)
 
 # Visualization (to floorplan.png)
-Visualizer().visualize(solution=solution, path="./figs/floorplan.png")
+Visualizer().visualize(solution=solution, path="../figs/floorplan.png")
 
 # [Other Usages]
 # We can also give a solution width (and/or height) limit, as well as progress bar and random seed
 print("\n=== Solving with width/height constraints ===")
 solution = Solver().solve(problem=problem, seed=1111)
 print("solution:", solution)
-Visualizer().visualize(solution=solution, path="./figs/floorplan_limit.png")
+Visualizer().visualize(solution=solution, path="../figs/floorplan_limit.png")

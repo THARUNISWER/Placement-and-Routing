@@ -14,9 +14,8 @@
 
 import graphlib
 from typing import Any, Dict, List, Optional, Tuple
-
-from floorplan import Floorplan
-from problem import Problem
+from .floorplan import Floorplan
+from .problem import Problem
 
 
 class ObliqueGrid:
@@ -69,18 +68,24 @@ class SequencePair:
         width_wrot = []
         height_wrot = []
         id = []
+        start_time = []
+        end_time = []
         for i in range(self.n):
             if (rotations is None) or (rotations[i] % 2 == 0):
                 # no rotation
                 width_wrot.append(problem.rectangles[i]["width"])
                 height_wrot.append(problem.rectangles[i]["height"])
                 id.append(problem.rectangles[i]["id"])
+                start_time.append(problem.rectangles[i]["start_time"])
+                end_time.append(problem.rectangles[i]["end_time"])
             else:
                 # with rotation
                 assert problem.rectangles[i]["rotatable"]
                 width_wrot.append(problem.rectangles[i]["height"])
                 height_wrot.append(problem.rectangles[i]["width"])
                 id.append(problem.rectangles[i]["id"])
+                start_time.append(problem.rectangles[i]["start_time"])
+                end_time.append(problem.rectangles[i]["end_time"])
 
         # Calculate the longest path in the "Horizontal Constraint Graph" (G_h)
         # This time complexity is O(n^2), may be optimized...
@@ -130,6 +135,8 @@ class SequencePair:
                     "y": dist_v[i] - height_wrot[i],  # distande from bottom edge
                     "width": width_wrot[i],
                     "height": height_wrot[i],
+                    "start_time": start_time[i],
+                    "end_time": end_time[i]
                 }
             )
 

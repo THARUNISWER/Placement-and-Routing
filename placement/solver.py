@@ -17,15 +17,12 @@ import signal
 import sys
 from typing import Any, List, Optional, Tuple
 
-from anneal import Annealer
+from .anneal import Annealer
 from tqdm.auto import tqdm
 
-from problem import Problem
-from sequence_pair import SequencePair
-from solution import Solution
-
-import Displacement
-
+from .problem import Problem
+from .sequence_pair import SequencePair
+from .solution import Solution
 
 def exit_handler(signum, frame) -> None:  # type: ignore
     """

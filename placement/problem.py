@@ -31,10 +31,12 @@ class Problem:
             if isinstance(r, (list, tuple)):
                 self.rectangles.append(
                     {
-                        "id": r[2],
-                        "width": r[0],
-                        "height": r[1],
-                        "rotatable": r[3] if len(r) >= 4 else False,
+                        "id": r[0],
+                        "width": r[1],
+                        "height": r[2],
+                        "start_time": r[3],
+                        "end_time": r[4],
+                        "rotatable": r[5] if len(r) >= 4 else False,
                     }
                 )
             elif isinstance(r, dict):
@@ -43,6 +45,8 @@ class Problem:
                         "id": r["id"],
                         "width": r["width"],
                         "height": r["height"],
+                        "start_time": r["start_time"],
+                        "end_time": r["end_time"],
                         "rotatable": r["rotatable"] if "rotatable" in r else False,
                     }
                 )
